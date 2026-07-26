@@ -23,6 +23,19 @@ def main():
     count = len(items)
     print(f"Found {count} .card--product elements.")
 
+    product_names = []
+    for item in items:
+        title_element = item.select_one('h2, h3')
+        if title_element:
+            name = title_element.text.strip()
+        else:
+            img = item.select_one('img')
+            name = img.get('alt').strip() if img and img.get('alt') else "Unknown Product"
+        
+        # Clean up the name if it has the site suffix
+        name = name.split(" - ")[0].strip()
+        product_names.append(name)
+
     if count >= 3:
         bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = os.environ.get("TELEGRAM_CHAT_ID")
@@ -32,7 +45,9 @@ def main():
             sys.exit(1)
             
         telegram_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        message = f"Alert: Found {count} items (>= 3) on Haus and Kinder."
+        
+        names_str = "\n".join([f"- {name}" for name in product_names])
+        message = f"Alert: Found {count} items (>= 3) on Haus and Kinder.\n\nProducts:\n{names_str}"
         
         payload = {
             "chat_id": chat_id,
