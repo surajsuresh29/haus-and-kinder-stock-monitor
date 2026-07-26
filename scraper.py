@@ -23,7 +23,7 @@ def main():
     count = len(items)
     print(f"Found {count} .card--product elements.")
 
-    if count >= 1:
+    if count >= 3:
         bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = os.environ.get("TELEGRAM_CHAT_ID")
 
@@ -32,7 +32,7 @@ def main():
             sys.exit(1)
             
         telegram_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        message = f"Alert: Found {count} items (>= 1) on Haus and Kinder."
+        message = f"Alert: Found {count} items (>= 3) on Haus and Kinder."
         
         payload = {
             "chat_id": chat_id,
