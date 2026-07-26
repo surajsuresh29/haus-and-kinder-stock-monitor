@@ -36,7 +36,7 @@ def main():
         name = name.split(" - ")[0].strip()
         product_names.append(name)
 
-    if count >= 1:
+    if count >= 3:
         bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = os.environ.get("TELEGRAM_CHAT_ID")
 
@@ -47,7 +47,7 @@ def main():
         telegram_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         
         names_str = "\n".join([f"- {name}" for name in product_names])
-        message = f"Alert: Found {count} items (>= 1) on Haus and Kinder.\n\nProducts:\n{names_str}"
+        message = f"Alert: Found {count} items (>= 3) on Haus and Kinder.\n\nProducts:\n{names_str}"
         
         payload = {
             "chat_id": chat_id,
