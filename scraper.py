@@ -18,10 +18,10 @@ def main():
 
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # Count the number of elements with the CSS class .product-grid-item
-    items = soup.select(".product-grid-item")
+    # Count the number of elements with the CSS class .card--product
+    items = soup.select(".card--product")
     count = len(items)
-    print(f"Found {count} .product-grid-item elements.")
+    print(f"Found {count} .card--product elements.")
 
     if count >= 3:
         bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
