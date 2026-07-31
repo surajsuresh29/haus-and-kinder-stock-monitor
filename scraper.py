@@ -62,10 +62,16 @@ def check_haus_and_kinder():
 
         if count >= 3:
             names_str = "\n".join([f"- {name}" for name in product_names])
-            message = f"Alert: Found {count} items (>= 3) on Haus and Kinder.\n\nProducts:\n{names_str}"
+            message = f"✅ Alert: Found {count} items (>= 3) on Haus and Kinder.\n\nProducts:\n{names_str}"
             send_telegram_message(message)
+        else:
+            message = f"ℹ️ Haus and Kinder Check: Only {count} items found (Threshold is 3). Waiting for restock..."
+            send_telegram_message(message)
+            
     except Exception as e:
-        print(f"Error during Haus and Kinder check: {e}")
+        msg = f"⚠️ Error during Haus and Kinder check: {e}"
+        print(msg)
+        send_telegram_message(msg)
 
 def check_zostel():
     print("--- Running Zostel Varanasi Check ---")
@@ -91,7 +97,9 @@ def check_zostel():
                 room_text = body_text[start_idx:start_idx+1500]
                 
                 if "0 units" in room_text or "Bookings Not Open" in room_text or "❌" in room_text:
-                    print(f"Room ID {ZOSTEL_TARGET_ROOM_ID} (Deluxe 4 Bed Mixed Dorm) is still sold out or unavailable.")
+                    msg = f"ℹ️ Zostel Varanasi Check: Room 'Deluxe 4 Bed Mixed Dorm' is still sold out or unavailable for your dates."
+                    print(msg)
+                    send_telegram_message(msg)
                 else:
                     print("Availability found! Sending Telegram alert.")
                     
@@ -106,12 +114,16 @@ def check_zostel():
                     )
                     send_telegram_message(msg, parse_mode="HTML")
             else:
-                print(f"Room 'Deluxe 4 Bed Mixed Dorm' not found in the DOM. Layout might have changed.")
+                msg = f"⚠️ Error: Room 'Deluxe 4 Bed Mixed Dorm' not found in the DOM. Zostel's layout might have changed."
+                print(msg)
+                send_telegram_message(msg)
                 
             browser.close()
 
     except Exception as e:
-        print(f"Error during Zostel check: {e}")
+        msg = f"⚠️ Error during Zostel check: {e}"
+        print(msg)
+        send_telegram_message(msg)
 
 def main():
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
