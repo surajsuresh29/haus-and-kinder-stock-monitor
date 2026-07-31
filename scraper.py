@@ -2,18 +2,13 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import sys
+import re
 
 # --- CONFIGURATION ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-ZOSTEL_API_URL = "https://api.zostel.com/api/v1/stay/offered/rooms/"
-ZOSTEL_PARAMS = {
-    "checkin": "2026-09-30",
-    "checkout": "2026-10-04",
-    "property_code": "zostel-varanasi-vrnh142"
-}
-ZOSTEL_BOOKING_URL = "http://zostel.com/destination/varanasi/stay/zostel-varanasi-vrnh142?checkin=2026-09-30&checkout=2026-10-04"
+ZOSTEL_BOOKING_URL = "https://www.zostel.com/destination/varanasi/stay/zostel-varanasi-vrnh142/?checkin=2026-09-30&checkout=2026-10-04"
 ZOSTEL_TARGET_ROOM_ID = 1563
 
 def send_telegram_message(message, parse_mode=None):
@@ -49,7 +44,6 @@ def check_haus_and_kinder():
         
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Count the number of elements with the CSS class .card--product
         items = soup.select(".card--product")
         count = len(items)
         print(f"Found {count} .card--product elements.")
@@ -63,7 +57,6 @@ def check_haus_and_kinder():
                 img = item.select_one('img')
                 name = img.get('alt').strip() if img and img.get('alt') else "Unknown Product"
             
-            # Clean up the name if it has the site suffix
             name = name.split(" - ")[0].strip()
             product_names.append(name)
 
@@ -76,43 +69,46 @@ def check_haus_and_kinder():
 
 def check_zostel():
     print("--- Running Zostel Varanasi Check ---")
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'application/json'
-    }
     
     try:
-        response = requests.get(ZOSTEL_API_URL, params=ZOSTEL_PARAMS, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        
-        rooms = data.get('rooms', [])
-        found_room = False
-        
-        for room in rooms:
-            if room.get('id') == ZOSTEL_TARGET_ROOM_ID:
-                found_room = True
-                availability = room.get('availability', {})
-                is_available = availability.get('available', False)
-                units = availability.get('units', 0)
-                price = room.get('base_price_per_night', 'N/A')
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                viewport={"width": 1280, "height": 800}
+            )
+            page = context.new_page()
+            
+            print(f"Navigating to {ZOSTEL_BOOKING_URL}")
+            page.goto(ZOSTEL_BOOKING_URL, wait_until="networkidle")
+            page.wait_for_timeout(5000)
+            
+            body_text = page.locator("body").inner_text()
+            
+            start_idx = body_text.find("Deluxe 4 Bed Mixed Dorm")
+            if start_idx != -1:
+                room_text = body_text[start_idx:start_idx+1500]
                 
-                if is_available and units > 0:
-                    print(f"Availability found! {units} beds at ₹{price}.")
+                if "0 units" in room_text or "Bookings Not Open" in room_text or "❌" in room_text:
+                    print(f"Room ID {ZOSTEL_TARGET_ROOM_ID} (Deluxe 4 Bed Mixed Dorm) is still sold out or unavailable.")
+                else:
+                    print("Availability found! Sending Telegram alert.")
+                    
+                    price_match = re.search(r'₹\s*([0-9,]+)', room_text)
+                    price = price_match.group(1) if price_match else "N/A"
+                    
                     msg = (
                         f"🚨 <b>Zostel Varanasi Alert!</b>\n\n"
                         f"The <b>Deluxe 4 Bed Mixed Dorm</b> is now available!\n"
-                        f"🛏️ <b>Beds available:</b> {units}\n"
                         f"💰 <b>Price per night:</b> ₹{price}\n\n"
                         f"Book here: <a href='{ZOSTEL_BOOKING_URL}'>Zostel Varanasi</a>"
                     )
                     send_telegram_message(msg, parse_mode="HTML")
-                else:
-                    print(f"Room ID {ZOSTEL_TARGET_ROOM_ID} is still sold out or unavailable.")
-                break
+            else:
+                print(f"Room 'Deluxe 4 Bed Mixed Dorm' not found in the DOM. Layout might have changed.")
                 
-        if not found_room:
-            print(f"Room ID {ZOSTEL_TARGET_ROOM_ID} not found in the response.")
+            browser.close()
 
     except Exception as e:
         print(f"Error during Zostel check: {e}")
