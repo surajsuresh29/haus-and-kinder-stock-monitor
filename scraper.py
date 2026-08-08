@@ -85,7 +85,7 @@ def check_zostel():
             "url": "https://www.zostel.com/destination/jaisalmer/stay/zostel-sam-desert-jaisalmer-jslh187/?checkin=2026-09-30&checkout=2026-10-04",
             "room_name": "10 Bed",
             "room_name_alt": "Mudhouse",
-            "check_omission": True
+            "check_omission": False
         }
     ]
     
