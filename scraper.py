@@ -8,9 +8,6 @@ import re
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-ZOSTEL_BOOKING_URL = "https://www.zostel.com/destination/varanasi/stay/zostel-varanasi-vrnh142/?checkin=2026-09-30&checkout=2026-10-04"
-ZOSTEL_TARGET_ROOM_ID = 1563
-
 def send_telegram_message(message, parse_mode=None):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram credentials missing, cannot send message.")
@@ -74,7 +71,23 @@ def check_haus_and_kinder():
         send_telegram_message(msg)
 
 def check_zostel():
-    print("--- Running Zostel Varanasi Check ---")
+    print("--- Running Zostel Checks ---")
+    
+    targets = [
+        {
+            "name": "Zostel Varanasi",
+            "url": "https://www.zostel.com/destination/varanasi/stay/zostel-varanasi-vrnh142/?checkin=2026-09-30&checkout=2026-10-04",
+            "room_name": "Deluxe 4 Bed Mixed Dorm",
+            "check_omission": False
+        },
+        {
+            "name": "Zostel Sam Desert (Jaisalmer)",
+            "url": "https://www.zostel.com/destination/jaisalmer/stay/zostel-sam-desert-jaisalmer-jslh187/?checkin=2026-09-30&checkout=2026-10-04",
+            "room_name": "10 Bed",
+            "room_name_alt": "Mudhouse",
+            "check_omission": True
+        }
+    ]
     
     try:
         from playwright.sync_api import sync_playwright
@@ -86,42 +99,76 @@ def check_zostel():
             )
             page = context.new_page()
             
-            print(f"Navigating to {ZOSTEL_BOOKING_URL}")
-            page.goto(ZOSTEL_BOOKING_URL, wait_until="networkidle")
-            page.wait_for_timeout(5000)
-            
-            body_text = page.locator("body").inner_text()
-            
-            start_idx = body_text.find("Deluxe 4 Bed Mixed Dorm")
-            if start_idx != -1:
-                room_text = body_text[start_idx:start_idx+1500]
-                
-                if "0 units" in room_text or "Bookings Not Open" in room_text or "❌" in room_text:
-                    msg = f"ℹ️ Zostel Varanasi Check: Room 'Deluxe 4 Bed Mixed Dorm' is still sold out or unavailable for your dates."
+            for target in targets:
+                print(f"Navigating to {target['name']}...")
+                try:
+                    page.goto(target['url'], wait_until="networkidle")
+                    page.wait_for_timeout(5000)
+                    
+                    body_text = page.locator("body").inner_text()
+                    
+                    if target['check_omission']:
+                        if "10 Bed" in body_text or target["room_name_alt"] in body_text:
+                            print(f"Availability found for {target['name']}!")
+                            
+                            start_idx = body_text.find("10 Bed")
+                            if start_idx == -1:
+                                start_idx = body_text.find(target["room_name_alt"])
+                                
+                            price = "N/A"
+                            if start_idx != -1:
+                                room_text = body_text[start_idx:start_idx+1500]
+                                price_match = re.search(r'₹\s*([0-9,]+)', room_text)
+                                if price_match:
+                                    price = price_match.group(1)
+                                    
+                            msg = (
+                                f"🚨 <b>{target['name']} Alert!</b>\n\n"
+                                f"The <b>10 Bed Mixed Dorm (Mudhouse)</b> is now available!\n"
+                                f"💰 <b>Price per night:</b> ₹{price}\n\n"
+                                f"Book here: <a href='{target['url']}'>Book Now</a>"
+                            )
+                            send_telegram_message(msg, parse_mode="HTML")
+                        else:
+                            msg = f"ℹ️ {target['name']} Check: Target Room (10 Bed / Mudhouse) is omitted/sold out."
+                            print(msg)
+                            send_telegram_message(msg)
+                    else:
+                        start_idx = body_text.find(target['room_name'])
+                        if start_idx != -1:
+                            room_text = body_text[start_idx:start_idx+1500]
+                            
+                            if "0 units" in room_text or "Bookings Not Open" in room_text or "❌" in room_text:
+                                msg = f"ℹ️ {target['name']} Check: Room '{target['room_name']}' is still sold out or unavailable for your dates."
+                                print(msg)
+                                send_telegram_message(msg)
+                            else:
+                                print(f"Availability found for {target['name']}!")
+                                
+                                price_match = re.search(r'₹\s*([0-9,]+)', room_text)
+                                price = price_match.group(1) if price_match else "N/A"
+                                
+                                msg = (
+                                    f"🚨 <b>{target['name']} Alert!</b>\n\n"
+                                    f"The <b>{target['room_name']}</b> is now available!\n"
+                                    f"💰 <b>Price per night:</b> ₹{price}\n\n"
+                                    f"Book here: <a href='{target['url']}'>Book Now</a>"
+                                )
+                                send_telegram_message(msg, parse_mode="HTML")
+                        else:
+                            msg = f"⚠️ Error: Room '{target['room_name']}' not found in the DOM for {target['name']}. Layout might have changed."
+                            print(msg)
+                            send_telegram_message(msg)
+                            
+                except Exception as e:
+                    msg = f"⚠️ Error checking {target['name']}: {e}"
                     print(msg)
                     send_telegram_message(msg)
-                else:
-                    print("Availability found! Sending Telegram alert.")
-                    
-                    price_match = re.search(r'₹\s*([0-9,]+)', room_text)
-                    price = price_match.group(1) if price_match else "N/A"
-                    
-                    msg = (
-                        f"🚨 <b>Zostel Varanasi Alert!</b>\n\n"
-                        f"The <b>Deluxe 4 Bed Mixed Dorm</b> is now available!\n"
-                        f"💰 <b>Price per night:</b> ₹{price}\n\n"
-                        f"Book here: <a href='{ZOSTEL_BOOKING_URL}'>Zostel Varanasi</a>"
-                    )
-                    send_telegram_message(msg, parse_mode="HTML")
-            else:
-                msg = f"⚠️ Error: Room 'Deluxe 4 Bed Mixed Dorm' not found in the DOM. Zostel's layout might have changed."
-                print(msg)
-                send_telegram_message(msg)
                 
             browser.close()
 
     except Exception as e:
-        msg = f"⚠️ Error during Zostel check: {e}"
+        msg = f"⚠️ Critical Error during Zostel checks: {e}"
         print(msg)
         send_telegram_message(msg)
 
