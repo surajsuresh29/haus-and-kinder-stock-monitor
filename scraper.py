@@ -83,8 +83,7 @@ def check_zostel():
         {
             "name": "Zostel Sam Desert (Jaisalmer)",
             "url": "https://www.zostel.com/destination/jaisalmer/stay/zostel-sam-desert-jaisalmer-jslh187/?checkin=2026-09-30&checkout=2026-10-04",
-            "room_name": "10 Bed",
-            "room_name_alt": "Mudhouse",
+            "room_name": "10 Bed Mixed Dorm with a porch (Mudhouse)",
             "check_omission": False
         }
     ]
