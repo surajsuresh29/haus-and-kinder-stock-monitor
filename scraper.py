@@ -62,8 +62,7 @@ def check_haus_and_kinder():
             message = f"✅ Alert: Found {count} items (>= 3) on Haus and Kinder.\n\nProducts:\n{names_str}"
             send_telegram_message(message)
         else:
-            message = f"ℹ️ Haus and Kinder Check: Only {count} items found (Threshold is 3). Waiting for restock..."
-            send_telegram_message(message)
+            print(f"ℹ️ Haus and Kinder Check: Only {count} items found (Threshold is 3). Waiting for restock...")
             
     except Exception as e:
         msg = f"⚠️ Error during Haus and Kinder check: {e}"
@@ -129,18 +128,14 @@ def check_zostel():
                             )
                             send_telegram_message(msg, parse_mode="HTML")
                         else:
-                            msg = f"ℹ️ {target['name']} Check: Target Room (10 Bed / Mudhouse) is omitted/sold out."
-                            print(msg)
-                            send_telegram_message(msg)
+                            print(f"ℹ️ {target['name']} Check: Target Room (10 Bed / Mudhouse) is omitted/sold out.")
                     else:
                         start_idx = body_text.find(target['room_name'])
                         if start_idx != -1:
                             room_text = body_text[start_idx:start_idx+1500]
                             
                             if "0 units" in room_text or "Bookings Not Open" in room_text or "❌" in room_text:
-                                msg = f"ℹ️ {target['name']} Check: Room '{target['room_name']}' is still sold out or unavailable for your dates."
-                                print(msg)
-                                send_telegram_message(msg)
+                                print(f"ℹ️ {target['name']} Check: Room '{target['room_name']}' is still sold out or unavailable for your dates.")
                             else:
                                 print(f"Availability found for {target['name']}!")
                                 
